@@ -1,0 +1,76 @@
+# Currently just a placeholder for the deps of deploying the scheduler
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: kube-system
+  name: crl-scheduler
+  labels:
+    app: crl-scheduler
+    component: crl-scheduler
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crl-scheduler
+  namespace: kube-system
+rules:
+- apiGroups: ["storage.k8s.io"]
+  resources: ["csinodes", "storageclasses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["update"]
+- apiGroups: ["events.k8s.io"]
+  resources: ["events"]
+  verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crl-scheduler
+subjects:
+- kind: ServiceAccount
+  name: crl-scheduler
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: crl-scheduler
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crl-scheduler-kube-scheduler
+subjects:
+- kind: ServiceAccount
+  name: crl-scheduler
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: system:kube-scheduler
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crl-scheduler
+  labels:
+    app: crl-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crl-scheduler
+  template:
+    metadata:
+      labels:
+        app: crl-scheduler
+    spec:
+      serviceAccount: crl-scheduler
+      containers:
+        - name: crl-scheduler
+          command:
+          - crl-scheduler
+          - --v=0
+          image: crl-scheduler:0.0.65
+          imagePullPolicy: Always
